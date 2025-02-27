@@ -1,3 +1,5 @@
+console.log("Script loaded!");
+
 import { db, storage } from "./firebase.js";
 import { collection, addDoc, getDocs } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
