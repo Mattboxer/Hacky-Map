@@ -67,4 +67,10 @@ async function addHackySpot() {
 
 // 🚀 Load existing spots when page loads
 loadHackySpots();
+document.addEventListener("DOMContentLoaded", () => {
+    document.querySelector("button").addEventListener("click", addHackySpot);
+});
 
+function addHackySpot() {
+    alert("Button clicked! Implement Firebase upload here.");
+}
