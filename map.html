@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Mapbox Map</title>
+    <style>
+        body, html { margin: 0; padding: 0; height: 100%; }
+        #map { width: 100%; height: 100vh; }
+    </style>
+    <script src="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.js"></script>
+    <link href="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.css" rel="stylesheet">
+</head>
+<body>
+    <div id="map"></div>
+    <script>
+        mapboxgl.accessToken = 'pk.eyJ1IjoibWF0dGJveGVyIiwiYSI6ImNtN243OHBwejBxdTMycnM2dnh3a3doNXQifQ.GLcO8FmRNXle5JVx18VaVQ';
+        const map = new mapboxgl.Map({
+            container: 'map', // ID of the div where the map will be displayed
+            style: 'mapbox://styles/mapbox/streets-v11', // Map style
+            center: [-79.3832, 43.6532], // Toronto (Longitude, Latitude)
+            zoom: 10 // Zoom level
+        });
+    </script>
+</body>
+</html>
