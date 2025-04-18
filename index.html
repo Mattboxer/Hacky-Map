@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Hacky Sack Location Map</title>
+  <title>HackySpot</title>
 
-  <!-- Mapbox CSS -->
-  <link href="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.css" rel="stylesheet" />
+  <!-- Mapbox -->
+  <link href='https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.css' rel='stylesheet' />
   <style>
     body, html { margin: 0; padding: 0; height: 100%; }
     #map { position: absolute; top: 0; bottom: 0; width: 100%; }
@@ -20,47 +20,32 @@
       background: #fff; padding: 10px; border-radius: 5px;
       cursor: pointer; font-weight: bold;
     }
-    #upload-modal {
-      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(0, 0, 0, 0.5); display: none; justify-content: center; align-items: center;
-    }
-    .modal-content {
-      background: white; padding: 20px; border-radius: 5px;
-      width: 300px;
-    }
   </style>
 </head>
 <body>
   <div id="map"></div>
-  <button id="login-btn">Login with Google</button>
-  <button id="add-btn">+ Add Hacky Sack Location</button>
+  <div id="add-btn">+ Add Hacky Sack Spot</div>
+  <div id="login-btn">Login with Google</div>
 
-  <!-- Modal for upload -->
-  <div id="upload-modal">
-    <div class="modal-content">
-      <h3>Upload Hacky Sack Spot</h3>
-      <input type="file" id="file-input" accept="image/*,video/*" />
-      <button id="save-spot-btn">Save Spot</button>
-    </div>
-  </div>
+  <!-- Mapbox -->
+  <script src='https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.js'></script>
 
-  <!-- Mapbox and Firebase Scripts -->
-  <script src="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.js"></script>
+  <!-- Firebase SDKs -->
   <script type="module">
-    // Firebase Configuration
+    // Firebase imports
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
     import { getAuth, signInWithPopup, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js";
-    import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js";
-    import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-storage.js";
+    import { getFirestore } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js";
+    import { getStorage, ref, uploadBytes } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-storage.js";
 
-    // Firebase config (replace with your own credentials)
+    // Firebase config (Replace with your actual Firebase configuration)
     const firebaseConfig = {
-      apiKey: "your-api-key",
-      authDomain: "your-auth-domain.firebaseapp.com",
+      apiKey: "AIzaSyCnW-49ljxVS9Xtx9rwbxd5D2UAK4k6gDw",
+      authDomain: "your-project-id.firebaseapp.com",
       projectId: "your-project-id",
-      storageBucket: "your-storage-bucket.appspot.com",
-      messagingSenderId: "your-sender-id",
-      appId: "your-app-id"
+      storageBucket: "your-project-id.appspot.com",
+      messagingSenderId: "1234567890",
+      appId: "1:1234567890:web:abc123def456"
     };
 
     const app = initializeApp(firebaseConfig);
@@ -74,53 +59,85 @@
       const provider = new GoogleAuthProvider();
       signInWithPopup(auth, provider)
         .then(result => {
-          alert(`Logged in as ${result.user.displayName}`);
+          const user = result.user;
+          alert(`Logged in as ${user.displayName}`);
         })
-        .catch(err => console.error(err));
+        .catch(error => {
+          console.error(error);
+        });
     });
 
-    // Set up the map
-    mapboxgl.accessToken = 'your-mapbox-token';
+    // Mapbox setup
+    mapboxgl.accessToken = 'pk.eyJ1IjoibWF0dGJveGVyIiwiYSI6ImNtOW43aDFsbTBtZDkya3F1ajM1ZHVlazQifQ.BS6pLffaZs-CP84-Dgw-eA';
     const map = new mapboxgl.Map({
-      container: 'map',
-      style: 'mapbox://styles/mapbox/streets-v11',
-      center: [-98.5795, 39.8283],
-      zoom: 3
+      container: 'map', 
+      style: 'mapbox://styles/mapbox/streets-v11', 
+      center: [-98.5795, 39.8283], 
+      zoom: 3 
     });
 
-    // Show modal to add location
+    // Add Hacky Sack Spot functionality
     const addBtn = document.getElementById("add-btn");
-    const modal = document.getElementById("upload-modal");
     addBtn.addEventListener("click", () => {
-      modal.style.display = 'flex';
-    });
-
-    // Close modal when user uploads or cancels
-    const fileInput = document.getElementById("file-input");
-    const saveSpotBtn = document.getElementById("save-spot-btn");
-    saveSpotBtn.addEventListener("click", () => {
-      const file = fileInput.files[0];
-      if (file) {
-        // Upload image or video
-        const storageRef = ref(storage, `hacky-sack/${file.name}`);
-        uploadBytes(storageRef, file)
-          .then(() => {
-            return getDownloadURL(storageRef);
-          })
-          .then(url => {
-            // Save pin to Firestore with image URL
-            const docRef = addDoc(collection(db, "hacky-sack-locations"), {
-              lat: map.getCenter().lat,
-              lng: map.getCenter().lng,
-              mediaUrl: url,
-              uploader: auth.currentUser.displayName
-            });
-            alert("Spot saved!");
-            modal.style.display = 'none';
-          })
-          .catch(error => console.error("Error uploading file:", error));
+      const location = prompt("Enter the location where you play Hacky Sack (e.g., 'Central Park')");
+      if (location) {
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = 'image/*,video/*';
+        fileInput.onchange = (event) => handleFileUpload(event, location);
+        fileInput.click();
       }
     });
+
+    // Handle file upload and add a pin
+    function handleFileUpload(event, location) {
+      const file = event.target.files[0];
+      if (file) {
+        const storageRef = ref(storage, 'hacky-sack-spots/' + file.name);
+        uploadBytes(storageRef, file).then((snapshot) => {
+          console.log('Uploaded a file!');
+          const downloadURL = snapshot.ref.getDownloadURL();
+          downloadURL.then(url => {
+            const coordinates = getCoordinatesForLocation(location); // Get coordinates for the location
+
+            const marker = new mapboxgl.Marker()
+              .setLngLat(coordinates)
+              .addTo(map);
+
+            marker.getElement().addEventListener('click', () => {
+              displayUploadedFile(url);
+            });
+          });
+        });
+      }
+    }
+
+    // Get coordinates for a location (For demo purposes, you can expand it or use an API)
+    function getCoordinatesForLocation(location) {
+      const locationCoordinates = {
+        "Central Park": [-73.9680, 40.7851],
+        "Golden Gate Park": [-122.4862, 37.7690],
+        // Add more locations here
+      };
+      return locationCoordinates[location] || [-98.5795, 39.8283]; // Default to the center of the U.S.
+    }
+
+    // Display the uploaded file when the pin is clicked
+    function displayUploadedFile(url) {
+      const mediaContainer = document.createElement('div');
+      const mediaElement = document.createElement(url.includes('video') ? 'video' : 'img');
+      mediaElement.src = url;
+      mediaElement.style.width = '100%';
+      mediaElement.style.height = 'auto';
+
+      if (url.includes('video')) {
+        mediaElement.controls = true;
+      }
+
+      mediaContainer.appendChild(mediaElement);
+      document.body.appendChild(mediaContainer);
+    }
+
   </script>
 </body>
 </html>
