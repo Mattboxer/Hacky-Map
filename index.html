@@ -1,31 +1,84 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hacky Spot Map</title>
-    <style>
-        body, html { margin: 0; padding: 0; height: 100%; }
-        #map { width: 100%; height: 80vh; }
-        #addSpotForm { padding: 10px; background: white; position: absolute; top: 10px; left: 10px; z-index: 1000; }
-    </style>
-    <script src="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.js"></script>
-    <link href="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.css" rel="stylesheet">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>HackySpot</title>
+
+  <!-- Mapbox -->
+  <link href='https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.css' rel='stylesheet' />
+  <style>
+    body, html { margin: 0; padding: 0; height: 100%; }
+    #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+    #add-btn {
+      position: absolute; bottom: 20px; left: 20px;
+      background: #fff; padding: 10px; border-radius: 5px;
+      cursor: pointer; font-weight: bold;
+    }
+    #login-btn {
+      position: absolute; top: 20px; right: 20px;
+      background: #fff; padding: 10px; border-radius: 5px;
+      cursor: pointer; font-weight: bold;
+    }
+  </style>
 </head>
 <body>
+  <div id="map"></div>
+  <div id="add-btn">+ Add Hacky Sack Spot</div>
+  <div id="login-btn">Login with Google</div>
 
-    <div id="map"></div>
+  <!-- Mapbox -->
+  <script src='https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.js'></script>
 
-    <!-- Add Hacky Spot Form -->
-    <div id="addSpotForm">
-        <h3>Add Hacky Spot</h3>
-        <input type="text" id="locationName" placeholder="Enter Location Name"><br>
-        <input type="file" id="photoInput"><br>
-        <button id="addSpotButton">Add Spot</button>
-    </div>
+  <!-- Firebase SDKs -->
+  <script type="module">
+    // Firebase imports
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
+    import { getAuth, signInWithPopup, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js";
+    import { getFirestore } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js";
 
-    <!-- Scripts -->
- <script type="module" src="firebase.js"></script>
- <script src="script.js"></script>
+    // Firebase config
+    const firebaseConfig = {
+      apiKey: "AIzaSyCnW-49ljxVS9Xtx9rwbxd5D2UAK4k6gDw",
+      authDomain: "your-project-id.firebaseapp.com",
+      projectId: "your-project-id",
+      storageBucket: "your-project-id.appspot.com",
+      messagingSenderId: "1234567890",
+      appId: "1:1234567890:web:abc123def456"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    // Login
+    const loginBtn = document.getElementById("login-btn");
+    loginBtn.addEventListener("click", () => {
+      const provider = new GoogleAuthProvider();
+      signInWithPopup(auth, provider)
+        .then(result => {
+          const user = result.user;
+          alert(`Logged in as ${user.displayName}`);
+        })
+        .catch(error => {
+          console.error(error);
+        });
+    });
+
+    // Map
+    mapboxgl.accessToken = 'pk.eyJ1IjoibWF0dGJveGVyIiwiYSI6ImNtOW43aDFsbTBtZDkya3F1ajM1ZHVlazQifQ.BS6pLffaZs-CP84-Dgw-eA';
+    const map = new mapboxgl.Map({
+      container: 'map',
+      style: 'mapbox://styles/mapbox/streets-v11',
+      center: [-98.5795, 39.8283],
+      zoom: 3
+    });
+
+    // Button for adding spots (functionality coming soon)
+    const addBtn = document.getElementById("add-btn");
+    addBtn.addEventListener("click", () => {
+      alert("Add Hacky Sack spot clicked! This will drop a pin soon...");
+    });
+  </script>
 </body>
 </html>
