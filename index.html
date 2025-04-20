@@ -78,6 +78,30 @@
 
     // Add Hacky Sack Spot functionality
     const addBtn = document.getElementById("add-btn");
+    async function handleFileUpload(event, location) {
+  const file = event.target.files[0]; 
+  if (file) {
+    const storageRef = ref(storage, 'hacky-sack-spots/' + file.name);
+    try {
+      const snapshot = await uploadBytes(storageRef, file);
+      console.log('Uploaded a file!');
+      const url = await snapshot.ref.getDownloadURL();
+      const coordinates = await getCoordinatesForLocation(location);
+
+      const marker = new mapboxgl.Marker()
+        .setLngLat(coordinates)
+        .addTo(map);
+
+      marker.getElement().addEventListener('click', () => {
+        displayUploadedFile(url);
+      });
+
+    } catch (error) {
+      console.error("Error uploading file or getting coordinates:", error);
+    }
+  }
+}
+
     addBtn.addEventListener("click", () => {
       const location = prompt("Enter the location where you play Hacky Sack (e.g., 'Central Park')");
       if (location) {
@@ -86,12 +110,26 @@
         fileInput.accept = 'image/*,video/*';
         fileInput.onchange = (event) => handleFileUpload(event, location);
         fileInput.click();
+        async function getCoordinatesForLocation(location) {
+  const accessToken = mapboxgl.accessToken;
+  const response = await fetch(
+    `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(location)}.json?access_token=${accessToken}`
+  );
+  const data = await response.json();
+
+  if (data.features.length > 0) {
+    return data.features[0].center; // [lng, lat]
+  } else {
+    alert("Location not found. Try something more specific!");
+    throw new Error("Location not found");
+  }
+}
+
       }
     });
 
 
-  }
-async function handleFileUpload(event, location) {
+
   const file = event.target.files[0];
   if (file) {
     const storageRef = ref(storage, 'hacky-sack-spots/' + file.name);
