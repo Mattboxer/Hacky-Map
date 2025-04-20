@@ -89,51 +89,32 @@
       }
     });
 
-    // Handle file upload and add a pin
-    function handleFileUpload(event, location) {
-      const file = event.target.files[0];
-      if (file) {
-        const storageRef = ref(storage, 'hacky-sack-spots/' + file.name);
-        uploadBytes(storageRef, file).then((snapshot) => {
-          console.log('Uploaded a file!');
-          const downloadURL = snapshot.ref.getDownloadURL();
-          downloadURL.then(url => {
-            const coordinates = async function getCoordinatesForLocation(location) {
-  const accessToken = mapboxgl.accessToken;
-  const response = await fetch(
-    `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(location)}.json?access_token=${accessToken}`
-  );
-  const data = await response.json();
 
-  if (data.features.length > 0) {
-    return data.features[0].center; // [lng, lat]
-  } else {
-    alert("Location not found. Try something more specific!");
-    throw new Error("Location not found");
   }
-}(location); // Get coordinates for the location
+async function handleFileUpload(event, location) {
+  const file = event.target.files[0];
+  if (file) {
+    const storageRef = ref(storage, 'hacky-sack-spots/' + file.name);
+    try {
+      const snapshot = await uploadBytes(storageRef, file);
+      console.log('Uploaded a file!');
+      const url = await snapshot.ref.getDownloadURL();
+      const coordinates = await getCoordinatesForLocation(location); // ✅ Await here
 
-            const marker = new mapboxgl.Marker()
-              .setLngLat(coordinates)
-              .addTo(map);
+      const marker = new mapboxgl.Marker()
+        .setLngLat(coordinates)
+        .addTo(map);
 
-            marker.getElement().addEventListener('click', () => {
-              displayUploadedFile(url);
-            });
-          });
-        });
-      }
+      marker.getElement().addEventListener('click', () => {
+        displayUploadedFile(url);
+      });
+
+    } catch (error) {
+      console.error("Error uploading file or getting coordinates:", error);
     }
+  }
+}
 
-    // Get coordinates for a location (For demo purposes, you can expand it or use an API)
-    function getCoordinatesForLocation(location) {
-      const locationCoordinates = {
-        "Central Park": [-73.9680, 40.7851],
-        "Golden Gate Park": [-122.4862, 37.7690],
-        // Add more locations here
-      };
-      return locationCoordinates[location] || [-98.5795, 39.8283]; // Default to the center of the U.S.
-    }
 
     // Display the uploaded file when the pin is clicked
     function displayUploadedFile(url) {
