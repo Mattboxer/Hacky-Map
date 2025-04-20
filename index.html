@@ -10,16 +10,12 @@
   <style>
     body, html { margin: 0; padding: 0; height: 100%; }
     #map { position: absolute; top: 0; bottom: 0; width: 100%; }
-    #add-btn {
-      position: absolute; bottom: 20px; left: 20px;
-      background: #fff; padding: 10px; border-radius: 5px;
+    #add-btn, #login-btn {
+      position: absolute; background: #fff; padding: 10px; border-radius: 5px;
       cursor: pointer; font-weight: bold;
     }
-    #login-btn {
-      position: absolute; top: 20px; right: 20px;
-      background: #fff; padding: 10px; border-radius: 5px;
-      cursor: pointer; font-weight: bold;
-    }
+    #add-btn { bottom: 20px; left: 20px; }
+    #login-btn { top: 20px; right: 20px; }
   </style>
 </head>
 <body>
@@ -32,13 +28,11 @@
 
   <!-- Firebase SDKs -->
   <script type="module">
-    // Firebase imports
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
     import { getAuth, signInWithPopup, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js";
-    import { getFirestore } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js";
-    import { getStorage, ref, uploadBytes } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-storage.js";
+    import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js";
+    import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-storage.js";
 
-    // Firebase config (Replace with your actual Firebase configuration)
     const firebaseConfig = {
       apiKey: "AIzaSyCnW-49ljxVS9Xtx9rwbxd5D2UAK4k6gDw",
       authDomain: "your-project-id.firebaseapp.com",
@@ -53,95 +47,83 @@
     const db = getFirestore(app);
     const storage = getStorage(app);
 
-    // Login functionality
-    const loginBtn = document.getElementById("login-btn");
-    loginBtn.addEventListener("click", () => {
+    let currentUser = null;
+
+    // Google login
+    document.getElementById("login-btn").addEventListener("click", () => {
       const provider = new GoogleAuthProvider();
       signInWithPopup(auth, provider)
         .then(result => {
-          const user = result.user;
-          alert(`Logged in as ${user.displayName}`);
+          currentUser = result.user;
+          alert(`Logged in as ${currentUser.displayName}`);
         })
-        .catch(error => {
-          console.error("Error logging in:", error);
-        });
+        .catch(error => console.error("Login error:", error));
     });
 
     // Mapbox setup
     mapboxgl.accessToken = 'pk.eyJ1IjoibWF0dGJveGVyIiwiYSI6ImNtOW43aDFsbTBtZDkya3F1ajM1ZHVlazQifQ.BS6pLffaZs-CP84-Dgw-eA';
     const map = new mapboxgl.Map({
-      container: 'map', 
-      style: 'mapbox://styles/mapbox/streets-v11', 
-      center: [-98.5795, 39.8283], 
-      zoom: 3 
+      container: 'map',
+      style: 'mapbox://styles/mapbox/streets-v11',
+      center: [-98.5795, 39.8283],
+      zoom: 3
     });
 
-    // Add Hacky Sack Spot functionality
-    const addBtn = document.getElementById("add-btn");
-    
-    async function getCoordinatesForLocation(location) {
-      const accessToken = mapboxgl.accessToken;
-      const response = await fetch(
-        `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(location)}.json?access_token=${accessToken}`
-      );
-      const data = await response.json();
-
-      if (data.features.length > 0) {
-        return data.features[0].center; // [lng, lat]
-      } else {
-        alert("Location not found. Please try again!");
-        throw new Error("Location not found");
+    // Add spot
+    document.getElementById("add-btn").addEventListener("click", async () => {
+      if (!currentUser) {
+        alert("Please log in first!");
+        return;
       }
-    }
 
-    async function handleFileUpload(event, location) {
-      const file = event.target.files[0]; 
-      if (file) {
-        const storageRef = ref(storage, 'hacky-sack-spots/' + file.name);
+      const location = prompt("Where do you play Hacky Sack?");
+      if (!location) return;
+
+      const fileInput = document.createElement('input');
+      fileInput.type = 'file';
+      fileInput.accept = 'image/*,video/*';
+      fileInput.onchange = async (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+
         try {
+          const coords = await getCoordinatesForLocation(location);
+          const storageRef = ref(storage, `hacky-sack-spots/${file.name}`);
           const snapshot = await uploadBytes(storageRef, file);
-          console.log('Uploaded a file!');
-          const url = await snapshot.ref.getDownloadURL();
-          const coordinates = await getCoordinatesForLocation(location); // ✅ Await here
+          const url = await getDownloadURL(snapshot.ref);
 
-          const marker = new mapboxgl.Marker()
-            .setLngLat(coordinates)
-            .addTo(map);
+          // Add marker to map
+          const marker = new mapboxgl.Marker().setLngLat(coords).addTo(map);
+          const popupContent = `
+            <strong>Uploaded by:</strong> ${currentUser.displayName}<br/>
+            <${url.includes('video') ? 'video controls' : 'img'} src="${url}" style="width:200px">
+          `;
+          marker.setPopup(new mapboxgl.Popup().setHTML(popupContent));
 
-          marker.getElement().addEventListener('click', () => {
-            displayUploadedFile(url);
+          // Save to Firestore (optional)
+          await addDoc(collection(db, "hackySpots"), {
+            user: currentUser.displayName,
+            fileUrl: url,
+            coordinates: coords,
+            timestamp: Date.now()
           });
-        } catch (error) {
-          console.error("Error uploading file or getting coordinates:", error);
-        }
-      }
-    }
 
-    addBtn.addEventListener("click", () => {
-      const location = prompt("Enter the location where you play Hacky Sack (e.g., 'Central Park')");
-      if (location) {
-        const fileInput = document.createElement('input');
-        fileInput.type = 'file';
-        fileInput.accept = 'image/*,video/*';
-        fileInput.onchange = (event) => handleFileUpload(event, location);
-        fileInput.click();
-      }
+        } catch (err) {
+          console.error("Error uploading:", err);
+          alert("Something went wrong! Try again.");
+        }
+      };
+      fileInput.click();
     });
 
-    // Display the uploaded file when the pin is clicked
-    function displayUploadedFile(url) {
-      const mediaContainer = document.createElement('div');
-      const mediaElement = document.createElement(url.includes('video') ? 'video' : 'img');
-      mediaElement.src = url;
-      mediaElement.style.width = '100%';
-      mediaElement.style.height = 'auto';
-
-      if (url.includes('video')) {
-        mediaElement.controls = true;
+    async function getCoordinatesForLocation(location) {
+      const response = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(location)}.json?access_token=${mapboxgl.accessToken}`);
+      const data = await response.json();
+      if (data.features.length > 0) {
+        return data.features[0].center;
+      } else {
+        throw new Error("Location not found.");
       }
-
-      mediaContainer.appendChild(mediaElement);
-      document.body.appendChild(mediaContainer);
     }
   </script>
 </body>
