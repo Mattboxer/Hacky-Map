@@ -1,168 +1,62 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>HackySpot</title>
+document.getElementById("add-btn").addEventListener("click", async () => {
+  if (!currentUser) {
+    alert("Please log in first!");
+    return;
+  }
 
-  <!-- Mapbox -->
-  <link href="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.css" rel="stylesheet" />
-  <style>
-    body, html { margin: 0; padding: 0; height: 100%; }
-    #map { position: absolute; top: 0; bottom: 0; width: 100%; }
-    #add-btn, #login-btn {
-      position: absolute; background: #fff; padding: 10px; border-radius: 5px;
-      cursor: pointer; font-weight: bold;
-    }
-    #add-btn { bottom: 20px; left: 20px; }
-    #login-btn { top: 20px; right: 20px; }
-  </style>
-</head>
-<body>
-  <div id="map"></div>
-  <div id="add-btn">+ Add Hacky Sack Spot</div>
-  <div id="login-btn">Login with Google</div>
+  const location = prompt("Where do you play Hacky Sack?");
+  if (!location) return;
 
-  <!-- Mapbox -->
-  <script src="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.js"></script>
+  const fileInput = document.createElement('input');
+  fileInput.type = 'file';
+  fileInput.accept = 'image/*,video/*';
 
-  <!-- Firebase SDK -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
-    import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-analytics.js";
-    import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js";
-    import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore.js";
-    import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-storage.js";
+  fileInput.onchange = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyCnW-49ljxVS9Xtx9rwbxd5D2UAK4k6gDw",
-      authDomain: "hackyspot-a6a9c.firebaseapp.com",
-      projectId: "hackyspot-a6a9c",
-      storageBucket: "hackyspot-a6a9c.appspot.com",
-      messagingSenderId: "123889612478",
-      appId: "1:123889612478:web:82fd392498006f8b14d0ef",
-      measurementId: "G-9DB1LJLEVM"
-    };
+    try {
+      const coords = await getCoordinatesForLocation(location);
+      const storageRef = ref(storage, `hacky-sack-spots/${Date.now()}_${file.name}`);
+      const snapshot = await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(snapshot.ref);
 
-    const app = initializeApp(firebaseConfig);
-    const analytics = getAnalytics(app);
-    const auth = getAuth();
-    const db = getFirestore();
-    const storage = getStorage();
+      const marker = new mapboxgl.Marker().setLngLat(coords);
 
-    let currentUser = null;
+      const mediaTag = url.includes('.mp4')
+        ? `<video controls src="${url}" style="width:200px"></video>`
+        : `<img src="${url}" style="width:200px" />`;
 
-    onAuthStateChanged(auth, (user) => {
-      if (user) {
-        currentUser = user;
-        document.getElementById("login-btn").innerText = `Logged in as ${user.displayName}`;
-        document.getElementById("add-btn").style.display = "block";
-      } else {
-        currentUser = null;
-        document.getElementById("login-btn").innerText = "Login with Google";
-        document.getElementById("add-btn").style.display = "none";
-      }
-    });
+      // Unique ID to avoid collision with other buttons
+      const deleteId = `delete-${Date.now()}`;
 
-    document.getElementById("login-btn").addEventListener("click", () => {
-      if (currentUser) return;
-      const provider = new GoogleAuthProvider();
-      signInWithPopup(auth, provider)
-        .then(result => {
-          currentUser = result.user;
-          alert(`Logged in as ${currentUser.displayName}`);
-        })
-        .catch(error => console.error("Login error:", error));
-    });
+      const popup = new mapboxgl.Popup().setHTML(`
+        <strong>Uploaded by:</strong> ${currentUser.displayName}<br/>
+        ${mediaTag}<br/>
+        <button id="${deleteId}">Remove Pin</button>
+      `);
 
-    mapboxgl.accessToken = 'pk.eyJ1IjoibWF0dGJveGVyIiwiYSI6ImNtOW43aDFsbTBtZDkya3F1ajM1ZHVlazQifQ.BS6pLffaZs-CP84-Dgw-eA';
-    const map = new mapboxgl.Map({
-      container: 'map',
-      style: 'mapbox://styles/mapbox/streets-v11',
-      center: [-98.5795, 39.8283],
-      zoom: 3
-    });
+      marker.setPopup(popup).addTo(map);
 
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition((position) => {
-        const { latitude, longitude } = position.coords;
-        map.setCenter([longitude, latitude]);
-        map.setZoom(12);
-        new mapboxgl.Marker()
-          .setLngLat([longitude, latitude])
-          .setPopup(new mapboxgl.Popup().setHTML("<strong>Your Current Location</strong>"))
-          .addTo(map);
-      }, (error) => {
-        console.error("Error getting location:", error);
+      // Wait for popup to open before attaching click
+      map.once('popupopen', () => {
+        document.getElementById(deleteId).onclick = () => {
+          marker.remove();
+        };
       });
+
+      await addDoc(collection(db, "hackySpots"), {
+        user: currentUser.displayName,
+        fileUrl: url,
+        coordinates: coords,
+        timestamp: Date.now(),
+        location
+      });
+
+    } catch (err) {
+      console.error("Error uploading:", err);
+      alert("Something went wrong! Try again.");
     }
-
-    document.getElementById("add-btn").addEventListener("click", async () => {
-      if (!currentUser) {
-        alert("Please log in first!");
-        return;
-      }
-
-      const location = prompt("Where do you play Hacky Sack?");
-      if (!location) return;
-
-      const fileInput = document.createElement('input');
-      fileInput.type = 'file';
-      fileInput.accept = 'image/*,video/*';
-      fileInput.onchange = async (event) => {
-        const file = event.target.files[0];
-        if (!file) return;
-
-        try {
-          const coords = await getCoordinatesForLocation(location);
-          const storageRef = ref(storage, `hacky-sack-spots/${file.name}`);
-          const snapshot = await uploadBytes(storageRef, file);
-          const url = await getDownloadURL(snapshot.ref);
-
-          const marker = new mapboxgl.Marker().setLngLat(coords).addTo(map);
-          const mediaTag = url.includes('.mp4') ? `<video controls src="${url}" style="width:200px"></video>` : `<img src="${url}" style="width:200px" />`;
-          const popup = new mapboxgl.Popup().setHTML(`
-            <strong>Uploaded by:</strong> ${currentUser.displayName}<br/>
-            ${mediaTag}<br/>
-            <button id="delete-marker">Remove Pin</button>
-          `);
-          marker.setPopup(popup).addTo(map);
-
-          popup.on('open', () => {
-            document.getElementById("delete-marker").onclick = () => {
-              marker.remove();
-            };
-          });
-
-          await addDoc(collection(db, "hackySpots"), {
-            user: currentUser.displayName,
-            fileUrl: url,
-            coordinates: coords,
-            timestamp: Date.now()
-          });
-
-        } catch (err) {
-          console.error("Error uploading:", err);
-          alert("Something went wrong! Try again.");
-        }
-      };
-      fileInput.click();
-    });
-
-    // Disable map click-to-add-marker functionality
-    map.on('click', () => {
-      // Do nothing
-    });
-
-    async function getCoordinatesForLocation(location) {
-      const response = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(location)}.json?access_token=${mapboxgl.accessToken}`);
-      const data = await response.json();
-      if (data.features.length > 0) {
-        return data.features[0].center;
-      } else {
-        throw new Error("Location not found.");
-      }
-    }
-  </script>
-</body>
-</html>
+  };
+  fileInput.click();
+});
