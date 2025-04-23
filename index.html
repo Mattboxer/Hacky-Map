@@ -55,7 +55,7 @@
     onAuthStateChanged(auth, (user) => {
       if (user) {
         currentUser = user;
-        document.getElementById("login-btn").innerText = Logged in as ${user.displayName};
+        document.getElementById("login-btn").innerText = `Logged in as ${user.displayName}`;
         document.getElementById("add-btn").style.display = "block";
       } else {
         currentUser = null;
@@ -70,7 +70,7 @@
       signInWithPopup(auth, provider)
         .then(result => {
           currentUser = result.user;
-          alert(Logged in as ${currentUser.displayName});
+          alert(`Logged in as ${currentUser.displayName}`);
         })
         .catch(error => console.error("Login error:", error));
     });
@@ -115,17 +115,22 @@
 
         try {
           const coords = await getCoordinatesForLocation(location);
-          const storageRef = ref(storage, hacky-sack-spots/${file.name});
+          const storageRef = ref(storage, `hacky-sack-spots/${file.name}`);
           const snapshot = await uploadBytes(storageRef, file);
           const url = await getDownloadURL(snapshot.ref);
 
-          const marker = new mapboxgl.Marker().setLngLat(coords).addTo(map);
-          const mediaTag = url.includes('.mp4') ? <video controls src="${url}" style="width:200px"></video> : <img src="${url}" style="width:200px" />;
-          const popup = new mapboxgl.Popup().setHTML(
+          const mediaTag = url.includes('.mp4')
+            ? `<video controls src="${url}" style="width:200px"></video>`
+            : `<img src="${url}" style="width:200px" />`;
+
+          const popupHTML = `
             <strong>Uploaded by:</strong> ${currentUser.displayName}<br/>
             ${mediaTag}<br/>
             <button id="delete-marker">Remove Pin</button>
-          );
+          `;
+
+          const marker = new mapboxgl.Marker().setLngLat(coords).addTo(map);
+          const popup = new mapboxgl.Popup().setHTML(popupHTML);
           marker.setPopup(popup).addTo(map);
 
           popup.on('open', () => {
@@ -149,27 +154,20 @@
       fileInput.click();
     });
 
-    // Disable map click-to-add-marker functionality
-    map.on('click', () => {
-      // Do nothing
-    });
-
     async function getCoordinatesForLocation(location) {
-  try {
-    const response = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(location)}.json?access_token=${mapboxgl.accessToken}`);
-    const data = await response.json();
+      try {
+        const response = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(location)}.json?access_token=${mapboxgl.accessToken}`);
+        const data = await response.json();
 
-    if (!data.features || data.features.length === 0) {
-      alert("Location not found. Try a more specific name!");
-      throw new Error("No location data found.");
-    }
+        if (!data.features || data.features.length === 0) {
+          alert("Location not found. Try a more specific name!");
+          throw new Error("No location data found.");
+        }
 
-    return data.features[0].center;
-  } catch (err) {
-    console.error("Geocoding failed:", err);
-    throw err;
-  }
-}
+        return data.features[0].center;
+      } catch (err) {
+        console.error("Geocoding failed:", err);
+        throw err;
       }
     }
   </script>
